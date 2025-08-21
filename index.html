@@ -77,10 +77,8 @@
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         // Global variables for Firebase services and user ID
-        let app;
-        let db;
-        let auth;
-        let userId = null;
+        let app, db, auth, userId = null;
+        let firebaseModulesLoaded = false;
 
         // UI elements
         const saveButton = document.getElementById('saveButton');
@@ -167,161 +165,172 @@
             }, 5000);
         }
 
-        async function initApp() {
-            initThreeJS();
+        async function initFirebase() {
+            if (!firebaseEnabled) {
+                statusMessage.textContent = "Authentication is disabled because Firebase configuration is not available.";
+                return;
+            }
+            
+            // Dynamically import Firebase modules
+            const firebaseAppModule = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
+            const firebaseAuthModule = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
+            const firestoreModule = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
 
-            if (firebaseEnabled) {
-                // Import Firebase modules only if enabled
-                const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
-                const { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, signInWithCustomToken } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
-                const { getFirestore, doc, getDoc, setDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+            // Assign imported functions to be used globally
+            const { initializeApp } = firebaseAppModule;
+            const { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, signInWithCustomToken } = firebaseAuthModule;
+            const { getFirestore, doc, getDoc, setDoc } = firestoreModule;
+
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
                 
-                try {
-                    app = initializeApp(firebaseConfig);
-                    db = getFirestore(app);
-                    auth = getAuth(app);
-                    
-                    onAuthStateChanged(auth, (user) => {
-                        if (user) {
-                            userId = user.uid;
-                            authForm.classList.add('hidden');
-                            appControls.classList.remove('hidden');
-                            showMessage(`Welcome back, ${user.email}!`);
-                            statusMessage.textContent = "You are now logged in and can save/load the shared cube state.";
-                        } else {
-                            userId = null;
-                            authForm.classList.remove('hidden');
-                            appControls.classList.add('hidden');
-                            showMessage("Please sign in or sign up.", false);
-                            statusMessage.textContent = "Create an account or log in to save and load the shared cube state.";
-                        }
-                    });
-
-                    if (initialAuthToken) {
-                        await signInWithCustomToken(auth, initialAuthToken);
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        authForm.classList.add('hidden');
+                        appControls.classList.remove('hidden');
+                        showMessage(`Welcome back, ${user.email}!`);
+                        statusMessage.textContent = "You are now logged in and can save/load the shared cube state.";
+                    } else {
+                        userId = null;
+                        authForm.classList.remove('hidden');
+                        appControls.classList.add('hidden');
+                        showMessage("Please sign in or sign up.", false);
+                        statusMessage.textContent = "Create an account or log in to save and load the shared cube state.";
                     }
-                } catch (error) {
-                    console.error("Error initializing Firebase:", error);
-                    showMessage(`Error initializing Firebase: ${error.message}`, true);
-                    statusMessage.textContent = "An error occurred. Firebase features are disabled.";
-                }
+                });
 
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                }
+                
+                // Set up event listeners after Firebase is initialized and ready
                 signUpButton.addEventListener('click', signUp);
                 signInButton.addEventListener('click', signIn);
                 signOutButton.addEventListener('click', signOutUser);
                 saveButton.addEventListener('click', saveCubeState);
                 loadButton.addEventListener('click', loadCubeState);
-                
-                async function signUp() {
-                    const email = emailInput.value;
-                    const password = passwordInput.value;
-                    if (!email || !password) {
-                        showMessage("Please enter both email and password.", true);
-                        return;
-                    }
-                    try {
-                        await createUserWithEmailAndPassword(auth, email, password);
-                        showMessage("Sign up successful! You are now logged in.");
-                    } catch (error) {
-                        console.error("Sign up error:", error);
-                        showMessage(`Sign up failed: ${error.message}`, true);
-                    }
+            
+            } catch (error) {
+                console.error("Error initializing Firebase:", error);
+                showMessage(`Error initializing Firebase: ${error.message}`, true);
+                statusMessage.textContent = "An error occurred. Firebase features are disabled.";
+            }
+
+            // --- User Authentication Functions (now nested to access auth and other variables) ---
+            async function signUp() {
+                const email = emailInput.value;
+                const password = passwordInput.value;
+                if (!email || !password) {
+                    showMessage("Please enter both email and password.", true);
+                    return;
+                }
+                try {
+                    await createUserWithEmailAndPassword(auth, email, password);
+                    showMessage("Sign up successful! You are now logged in.");
+                } catch (error) {
+                    console.error("Sign up error:", error);
+                    showMessage(`Sign up failed: ${error.message}`, true);
+                }
+            }
+
+            async function signIn() {
+                const email = emailInput.value;
+                const password = passwordInput.value;
+                if (!email || !password) {
+                    showMessage("Please enter both email and password.", true);
+                    return;
+                }
+                try {
+                    await signInWithEmailAndPassword(auth, email, password);
+                    showMessage("Sign in successful!");
+                } catch (error) {
+                    console.error("Sign in error:", error);
+                    showMessage(`Sign in failed: ${error.message}`, true);
+                }
+            }
+
+            async function signOutUser() {
+                try {
+                    await signOut(auth);
+                    showMessage("You have been signed out.");
+                } catch (error) {
+                    console.error("Sign out error:", error);
+                    showMessage(`Sign out failed: ${error.message}`, true);
+                }
+            }
+
+            async function saveCubeState() {
+                if (!userId) {
+                    showMessage("You must be logged in to save the cube state.", true);
+                    return;
                 }
 
-                async function signIn() {
-                    const email = emailInput.value;
-                    const password = passwordInput.value;
-                    if (!email || !password) {
-                        showMessage("Please enter both email and password.", true);
-                        return;
-                    }
-                    try {
-                        await signInWithEmailAndPassword(auth, email, password);
-                        showMessage("Sign in successful!");
-                    } catch (error) {
-                        console.error("Sign in error:", error);
-                        showMessage(`Sign in failed: ${error.message}`, true);
-                    }
+                const docId = 'zarraz-state';
+                const path = `artifacts/${appId}/public/cube-state/${docId}`;
+                const docRef = doc(db, path);
+
+                try {
+                    const rotation = {
+                        x: cube.rotation.x,
+                        y: cube.rotation.y,
+                        z: cube.rotation.z
+                    };
+
+                    await setDoc(docRef, { 
+                        rotation, 
+                        lastUpdated: new Date() 
+                    });
+                    
+                    console.log(`Cube state saved to public space.`);
+                    showMessage("Cube state saved to public space!");
+                } catch (e) {
+                    console.error("Error saving document: ", e);
+                    showMessage(`Error saving state: ${e.message}`, true);
+                }
+            }
+
+            async function loadCubeState() {
+                if (!userId) {
+                    showMessage("You must be logged in to load the cube state.", true);
+                    return;
                 }
 
-                async function signOutUser() {
-                    try {
-                        await signOut(auth);
-                        showMessage("You have been signed out.");
-                    } catch (error) {
-                        console.error("Sign out error:", error);
-                        showMessage(`Sign out failed: ${error.message}`, true);
-                    }
-                }
+                const docId = 'zarraz-state';
+                const path = `artifacts/${appId}/public/cube-state/${docId}`;
+                const docRef = doc(db, path);
 
-                async function saveCubeState() {
-                    if (!userId) {
-                        showMessage("You must be logged in to save the cube state.", true);
-                        return;
-                    }
+                try {
+                    const docSnap = await getDoc(docRef);
 
-                    const docId = 'zarraz-state';
-                    const path = `artifacts/${appId}/public/cube-state/${docId}`;
-                    const docRef = doc(db, path);
-
-                    try {
-                        const rotation = {
-                            x: cube.rotation.x,
-                            y: cube.rotation.y,
-                            z: cube.rotation.z
-                        };
-
-                        await setDoc(docRef, { 
-                            rotation, 
-                            lastUpdated: new Date() 
-                        });
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        const rotation = data.rotation;
                         
-                        console.log(`Cube state saved to public space.`);
-                        showMessage("Cube state saved to public space!");
-                    } catch (e) {
-                        console.error("Error saving document: ", e);
-                        showMessage(`Error saving state: ${e.message}`, true);
+                        cube.rotation.x = rotation.x;
+                        cube.rotation.y = rotation.y;
+                        cube.rotation.z = rotation.z;
+
+                        console.log(`Cube state loaded from public space.`);
+                        showMessage("Cube state loaded from public space!");
+                    } else {
+                        showMessage("No saved cube state found in public space.", true);
+                        console.log("No saved state found!");
                     }
+                } catch (e) {
+                    console.error("Error loading document: ", e);
+                    showMessage(`Error loading state: ${e.message}`, true);
                 }
-
-                async function loadCubeState() {
-                    if (!userId) {
-                        showMessage("You must be logged in to load the cube state.", true);
-                        return;
-                    }
-
-                    const docId = 'zarraz-state';
-                    const path = `artifacts/${appId}/public/cube-state/${docId}`;
-                    const docRef = doc(db, path);
-
-                    try {
-                        const docSnap = await getDoc(docRef);
-
-                        if (docSnap.exists()) {
-                            const data = docSnap.data();
-                            const rotation = data.rotation;
-                            
-                            cube.rotation.x = rotation.x;
-                            cube.rotation.y = rotation.y;
-                            cube.rotation.z = rotation.z;
-
-                            console.log(`Cube state loaded from public space.`);
-                            showMessage("Cube state loaded from public space!");
-                        } else {
-                            showMessage("No saved cube state found in public space.", true);
-                            console.log("No saved state found!");
-                        }
-                    } catch (e) {
-                        console.error("Error loading document: ", e);
-                        showMessage(`Error loading state: ${e.message}`, true);
-                    }
-                }
-            } else {
-                statusMessage.textContent = "Authentication is disabled because Firebase configuration is not available.";
             }
         }
         
-        initApp();
+        // This is the new, primary change: The cube initialization runs immediately.
+        initThreeJS();
+        
+        // Then, after the cube is loaded, we proceed with Firebase initialization.
+        initFirebase();
     </script>
 </body>
 </html>
