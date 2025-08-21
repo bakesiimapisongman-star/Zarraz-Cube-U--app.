@@ -23,8 +23,8 @@
 
     <div class="fixed inset-0 flex flex-col items-center justify-center p-4 z-10">
         <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold text-center mb-4 md:mb-6 leading-tight">Zarraz Cube</h1>
-        <p class="text-sm md:text-base text-center text-gray-400 mb-8 max-w-lg">
-            Create an account or log in to save and load the shared cube state.
+        <p class="text-sm md:text-base text-center text-gray-400 mb-8 max-w-lg" id="statusMessage">
+            Loading...
         </p>
 
         <!-- Container for messages -->
@@ -32,8 +32,8 @@
             <p id="messageText" class="font-medium"></p>
         </div>
 
-        <!-- Authentication Form - Initially visible -->
-        <div id="authForm" class="w-full max-w-md flex flex-col gap-4 p-6 bg-gray-800 rounded-xl shadow-lg">
+        <!-- Authentication Form - Initially hidden -->
+        <div id="authForm" class="w-full max-w-md flex-col gap-4 p-6 bg-gray-800 rounded-xl shadow-lg hidden">
             <input type="email" id="emailInput" placeholder="Email" class="p-3 rounded-lg bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500">
             <input type="password" id="passwordInput" placeholder="Password" class="p-3 rounded-lg bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500">
             <div class="flex flex-col sm:flex-row gap-3">
@@ -46,7 +46,7 @@
             </div>
         </div>
 
-        <!-- App Controls - Hidden until authenticated -->
+        <!-- App Controls - Initially hidden -->
         <div id="appControls" class="w-full max-w-md flex-col items-center gap-4 hidden">
             <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full justify-center">
                 <button id="saveButton" class="w-full sm:w-1/2 bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:bg-indigo-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
@@ -66,22 +66,23 @@
     <canvas id="canvas"></canvas>
 
     <script type="module">
-        // IMPORTANT: Use the global variables provided by the Canvas environment.
+        // This is the single, crucial check. The entire Firebase functionality
+        // is now wrapped in a conditional based on this check.
+        const firebaseEnabled = typeof __firebase_config !== 'undefined';
+        
+        let firebaseConfig = {};
+        if (firebaseEnabled) {
+            firebaseConfig = JSON.parse(__firebase_config);
+        }
+        
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        // Changed fallback from null to an empty object to prevent app from crashing
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Global variables for Firebase services and user ID
         let app;
         let db;
         let auth;
         let userId = null;
-        let firebaseEnabled = false;
 
         // UI elements
         const saveButton = document.getElementById('saveButton');
@@ -96,14 +97,14 @@
         const authForm = document.getElementById('authForm');
         const appControls = document.getElementById('appControls');
         const canvas = document.getElementById('canvas');
+        const statusMessage = document.getElementById('statusMessage');
 
-        // --- Three.js Setup (same as before) ---
+        // --- Three.js Setup ---
         let scene, camera, renderer, cube;
         let isDragging = false;
         let previousMousePosition = { x: 0, y: 0 };
 
         function initThreeJS() {
-            // Scene, Camera, Renderer
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
@@ -111,13 +112,11 @@
             renderer.setPixelRatio(window.devicePixelRatio);
             camera.position.z = 2;
 
-            // Cube geometry, material, and mesh
             const geometry = new THREE.BoxGeometry(1, 1, 1);
             const material = new THREE.MeshNormalMaterial();
             cube = new THREE.Mesh(geometry, material);
             scene.add(cube);
 
-            // Handle window resizing
             window.addEventListener('resize', onWindowResize, false);
             function onWindowResize() {
                 camera.aspect = window.innerWidth / window.innerHeight;
@@ -125,7 +124,6 @@
                 renderer.setSize(window.innerWidth, window.innerHeight);
             }
 
-            // Mouse and touch interaction for cube rotation
             document.addEventListener('mousedown', (e) => { isDragging = true; previousMousePosition.x = e.clientX; previousMousePosition.y = e.clientY; });
             document.addEventListener('mouseup', () => { isDragging = false; });
             document.addEventListener('mousemove', (e) => {
@@ -148,7 +146,6 @@
                 previousMousePosition.y = touch.clientY;
             });
 
-            // Animation loop
             function animate() {
                 requestAnimationFrame(animate);
                 renderer.render(scene, camera);
@@ -172,181 +169,164 @@
             }, 5000);
         }
 
-        async function initializeFirebase() {
-            try {
-                // Check if Firebase config is actually provided.
-                if (Object.keys(firebaseConfig).length === 0) {
-                    firebaseEnabled = false;
-                    console.error("Firebase config is not defined. Firebase features are disabled.");
-                    showMessage("Firebase features are disabled. This app is running without a Firebase config.", true);
-                    // Hide all Firebase-related buttons and forms
-                    authForm.classList.add('hidden');
+        if (firebaseEnabled) {
+            // Import Firebase modules only if enabled
+            import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+            import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+            import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+            async function initializeFirebase() {
+                try {
+                    app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+                    
+                    onAuthStateChanged(auth, (user) => {
+                        if (user) {
+                            userId = user.uid;
+                            authForm.classList.add('hidden');
+                            appControls.classList.remove('hidden');
+                            showMessage(`Welcome back, ${user.email}!`);
+                            statusMessage.textContent = "You are now logged in and can save/load the shared cube state.";
+                        } else {
+                            userId = null;
+                            authForm.classList.remove('hidden');
+                            appControls.classList.add('hidden');
+                            showMessage("Please sign in or sign up.", false);
+                            statusMessage.textContent = "Create an account or log in to save and load the shared cube state.";
+                        }
+                    });
+
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                    }
+                } catch (error) {
+                    console.error("Error initializing Firebase:", error);
+                    showMessage(`Error initializing Firebase: ${error.message}`, true);
+                    statusMessage.textContent = "An error occurred. Firebase features are disabled.";
+                }
+            }
+
+            async function signUp() {
+                const email = emailInput.value;
+                const password = passwordInput.value;
+                if (!email || !password) {
+                    showMessage("Please enter both email and password.", true);
                     return;
                 }
-                
-                firebaseEnabled = true;
-                app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-                
-                // Use onAuthStateChanged to manage UI based on login state
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        // User is logged in
-                        userId = user.uid;
-                        authForm.classList.add('hidden');
-                        appControls.classList.remove('hidden');
-                        showMessage(`Welcome back, ${user.email}!`);
-                    } else {
-                        // User is logged out
-                        userId = null;
-                        authForm.classList.remove('hidden');
-                        appControls.classList.add('hidden');
-                        showMessage("Please sign in or sign up.", false);
-                    }
-                });
-
-                // Authenticate with the initial token if it exists
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
+                try {
+                    await createUserWithEmailAndPassword(auth, email, password);
+                    showMessage("Sign up successful! You are now logged in.");
+                } catch (error) {
+                    console.error("Sign up error:", error);
+                    showMessage(`Sign up failed: ${error.message}`, true);
                 }
-            } catch (error) {
-                console.error("Error initializing Firebase:", error);
-                showMessage(`Error initializing Firebase: ${error.message}`, true);
-            }
-        }
-
-        // --- User Authentication Functions ---
-        async function signUp() {
-            if (!firebaseEnabled) return;
-            const email = emailInput.value;
-            const password = passwordInput.value;
-            if (!email || !password) {
-                showMessage("Please enter both email and password.", true);
-                return;
-            }
-            try {
-                await createUserWithEmailAndPassword(auth, email, password);
-                showMessage("Sign up successful! You are now logged in.");
-            } catch (error) {
-                console.error("Sign up error:", error);
-                showMessage(`Sign up failed: ${error.message}`, true);
-            }
-        }
-
-        async function signIn() {
-            if (!firebaseEnabled) return;
-            const email = emailInput.value;
-            const password = passwordInput.value;
-            if (!email || !password) {
-                showMessage("Please enter both email and password.", true);
-                return;
-            }
-            try {
-                await signInWithEmailAndPassword(auth, email, password);
-                showMessage("Sign in successful!");
-            } catch (error) {
-                console.error("Sign in error:", error);
-                showMessage(`Sign in failed: ${error.message}`, true);
-            }
-        }
-
-        async function signOutUser() {
-            if (!firebaseEnabled) return;
-            try {
-                await signOut(auth);
-                showMessage("You have been signed out.");
-            } catch (error) {
-                console.error("Sign out error:", error);
-                showMessage(`Sign out failed: ${error.message}`, true);
-            }
-        }
-
-        // --- Firestore Functions ---
-        async function saveCubeState() {
-            if (!firebaseEnabled) {
-                showMessage("Firebase is not enabled, cannot save state.", true);
-                return;
-            }
-            if (!userId) {
-                showMessage("You must be logged in to save the cube state.", true);
-                return;
             }
 
-            const docId = 'zarraz-state';
-            // The path is now public and accessible to all authorized users
-            const path = `artifacts/${appId}/public/cube-state/${docId}`;
-            const docRef = doc(db, path);
-
-            try {
-                const rotation = {
-                    x: cube.rotation.x,
-                    y: cube.rotation.y,
-                    z: cube.rotation.z
-                };
-
-                await setDoc(docRef, { 
-                    rotation, 
-                    lastUpdated: new Date() 
-                });
-                
-                console.log(`Cube state saved to public space.`);
-                showMessage("Cube state saved to public space!");
-            } catch (e) {
-                console.error("Error saving document: ", e);
-                showMessage(`Error saving state: ${e.message}`, true);
-            }
-        }
-
-        async function loadCubeState() {
-            if (!firebaseEnabled) {
-                showMessage("Firebase is not enabled, cannot load state.", true);
-                return;
-            }
-            if (!userId) {
-                showMessage("You must be logged in to load the cube state.", true);
-                return;
+            async function signIn() {
+                const email = emailInput.value;
+                const password = passwordInput.value;
+                if (!email || !password) {
+                    showMessage("Please enter both email and password.", true);
+                    return;
+                }
+                try {
+                    await signInWithEmailAndPassword(auth, email, password);
+                    showMessage("Sign in successful!");
+                } catch (error) {
+                    console.error("Sign in error:", error);
+                    showMessage(`Sign in failed: ${error.message}`, true);
+                }
             }
 
-            const docId = 'zarraz-state';
-            const path = `artifacts/${appId}/public/cube-state/${docId}`;
-            const docRef = doc(db, path);
+            async function signOutUser() {
+                try {
+                    await signOut(auth);
+                    showMessage("You have been signed out.");
+                } catch (error) {
+                    console.error("Sign out error:", error);
+                    showMessage(`Sign out failed: ${error.message}`, true);
+                }
+            }
 
-            try {
-                const docSnap = await getDoc(docRef);
+            async function saveCubeState() {
+                if (!userId) {
+                    showMessage("You must be logged in to save the cube state.", true);
+                    return;
+                }
 
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    const rotation = data.rotation;
+                const docId = 'zarraz-state';
+                const path = `artifacts/${appId}/public/cube-state/${docId}`;
+                const docRef = doc(db, path);
+
+                try {
+                    const rotation = {
+                        x: cube.rotation.x,
+                        y: cube.rotation.y,
+                        z: cube.rotation.z
+                    };
+
+                    await setDoc(docRef, { 
+                        rotation, 
+                        lastUpdated: new Date() 
+                    });
                     
-                    cube.rotation.x = rotation.x;
-                    cube.rotation.y = rotation.y;
-                    cube.rotation.z = rotation.z;
-
-                    console.log(`Cube state loaded from public space.`);
-                    showMessage("Cube state loaded from public space!");
-                } else {
-                    showMessage("No saved cube state found in public space.", true);
-                    console.log("No saved state found!");
+                    console.log(`Cube state saved to public space.`);
+                    showMessage("Cube state saved to public space!");
+                } catch (e) {
+                    console.error("Error saving document: ", e);
+                    showMessage(`Error saving state: ${e.message}`, true);
                 }
-            } catch (e) {
-                console.error("Error loading document: ", e);
-                showMessage(`Error loading state: ${e.message}`, true);
             }
-        }
-        
-        // --- Run on window load ---
-        window.onload = async function() {
-            await initializeFirebase();
-            initThreeJS();
+
+            async function loadCubeState() {
+                if (!userId) {
+                    showMessage("You must be logged in to load the cube state.", true);
+                    return;
+                }
+
+                const docId = 'zarraz-state';
+                const path = `artifacts/${appId}/public/cube-state/${docId}`;
+                const docRef = doc(db, path);
+
+                try {
+                    const docSnap = await getDoc(docRef);
+
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        const rotation = data.rotation;
+                        
+                        cube.rotation.x = rotation.x;
+                        cube.rotation.y = rotation.y;
+                        cube.rotation.z = rotation.z;
+
+                        console.log(`Cube state loaded from public space.`);
+                        showMessage("Cube state loaded from public space!");
+                    } else {
+                        showMessage("No saved cube state found in public space.", true);
+                        console.log("No saved state found!");
+                    }
+                } catch (e) {
+                    console.error("Error loading document: ", e);
+                    showMessage(`Error loading state: ${e.message}`, true);
+                }
+            }
             
-            // Add event listeners for all buttons after Firebase is initialized
-            if (firebaseEnabled) {
+            window.onload = async function() {
+                initThreeJS();
+                await initializeFirebase();
+                
                 signUpButton.addEventListener('click', signUp);
                 signInButton.addEventListener('click', signIn);
                 signOutButton.addEventListener('click', signOutUser);
                 saveButton.addEventListener('click', saveCubeState);
                 loadButton.addEventListener('click', loadCubeState);
+            }
+        } else {
+            // If Firebase is not enabled, update the UI to reflect this
+            window.onload = function() {
+                initThreeJS();
+                statusMessage.textContent = "Authentication is disabled because Firebase configuration is not available.";
             }
         }
     </script>
