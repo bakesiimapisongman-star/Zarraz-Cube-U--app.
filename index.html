@@ -68,7 +68,8 @@
     <script type="module">
         // IMPORTANT: Use the global variables provided by the Canvas environment.
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        // Changed fallback from null to an empty object to prevent app from crashing
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -80,6 +81,7 @@
         let db;
         let auth;
         let userId = null;
+        let firebaseEnabled = false;
 
         // UI elements
         const saveButton = document.getElementById('saveButton');
@@ -172,12 +174,17 @@
 
         async function initializeFirebase() {
             try {
-                if (!firebaseConfig) {
-                    console.error("Firebase config is not defined. Cannot initialize the app.");
-                    showMessage("Error: Firebase config is missing. Cannot initialize.", true);
+                // Check if Firebase config is actually provided.
+                if (Object.keys(firebaseConfig).length === 0) {
+                    firebaseEnabled = false;
+                    console.error("Firebase config is not defined. Firebase features are disabled.");
+                    showMessage("Firebase features are disabled. This app is running without a Firebase config.", true);
+                    // Hide all Firebase-related buttons and forms
+                    authForm.classList.add('hidden');
                     return;
                 }
                 
+                firebaseEnabled = true;
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
@@ -211,6 +218,7 @@
 
         // --- User Authentication Functions ---
         async function signUp() {
+            if (!firebaseEnabled) return;
             const email = emailInput.value;
             const password = passwordInput.value;
             if (!email || !password) {
@@ -227,6 +235,7 @@
         }
 
         async function signIn() {
+            if (!firebaseEnabled) return;
             const email = emailInput.value;
             const password = passwordInput.value;
             if (!email || !password) {
@@ -243,6 +252,7 @@
         }
 
         async function signOutUser() {
+            if (!firebaseEnabled) return;
             try {
                 await signOut(auth);
                 showMessage("You have been signed out.");
@@ -254,6 +264,10 @@
 
         // --- Firestore Functions ---
         async function saveCubeState() {
+            if (!firebaseEnabled) {
+                showMessage("Firebase is not enabled, cannot save state.", true);
+                return;
+            }
             if (!userId) {
                 showMessage("You must be logged in to save the cube state.", true);
                 return;
@@ -285,6 +299,10 @@
         }
 
         async function loadCubeState() {
+            if (!firebaseEnabled) {
+                showMessage("Firebase is not enabled, cannot load state.", true);
+                return;
+            }
             if (!userId) {
                 showMessage("You must be logged in to load the cube state.", true);
                 return;
@@ -323,11 +341,13 @@
             initThreeJS();
             
             // Add event listeners for all buttons after Firebase is initialized
-            signUpButton.addEventListener('click', signUp);
-            signInButton.addEventListener('click', signIn);
-            signOutButton.addEventListener('click', signOutUser);
-            saveButton.addEventListener('click', saveCubeState);
-            loadButton.addEventListener('click', loadCubeState);
+            if (firebaseEnabled) {
+                signUpButton.addEventListener('click', signUp);
+                signInButton.addEventListener('click', signIn);
+                signOutButton.addEventListener('click', signOutUser);
+                saveButton.addEventListener('click', saveCubeState);
+                loadButton.addEventListener('click', loadCubeState);
+            }
         }
     </script>
 </body>
