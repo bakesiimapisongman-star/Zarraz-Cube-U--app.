@@ -3,892 +3,283 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zarraz Cube Business Management</title>
-    <!-- Tailwind CSS for a modern, responsive design -->
+    <title>Zarraz Cube App</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <!-- sql.js for the local database -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/sql-wasm.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        body { font-family: 'Inter', sans-serif; }
-        .sidebar { transition: width 0.3s; }
-        .main-content { transition: margin-left 0.3s; }
-        /* Custom scrollbar for better aesthetics */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #f1f5f9; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        /* Hide a div by default */
-        [data-page] { display: none; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117;
+            color: #c9d1d9;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+        }
     </style>
 </head>
-<body class="bg-gray-50 flex min-h-screen">
-    <!-- Sidebar Navigation -->
-    <aside id="sidebar" class="w-64 bg-slate-800 text-white shadow-xl fixed min-h-screen flex flex-col z-50">
-        <div class="p-6 flex items-center justify-center border-b border-slate-700">
-            <img id="logo-display" src="https://placehold.co/48x48/64748b/FFFFFF?text=ZC" alt="Zarraz Cube Logo" class="rounded-full mr-2">
-            <h1 class="text-xl font-bold">Zarraz Cube</h1>
-        </div>
-        <nav class="flex-1 overflow-y-auto mt-4">
-            <ul class="space-y-2 px-4">
-                <li><a href="#" data-nav="dashboard" class="flex items-center p-3 rounded-xl transition-colors duration-200 hover:bg-slate-700 text-sky-400 font-semibold"><i class="fas fa-chart-line w-6 mr-3"></i> Dashboard</a></li>
-                <li><a href="#" data-nav="stock" class="flex items-center p-3 rounded-xl transition-colors duration-200 hover:bg-slate-700"><i class="fas fa-box w-6 mr-3"></i> Stock Management</a></li>
-                <li><a href="#" data-nav="members" class="flex items-center p-3 rounded-xl transition-colors duration-200 hover:bg-slate-700"><i class="fas fa-users w-6 mr-3"></i> Members & Leadership</a></li>
-                <li><a href="#" data-nav="events" class="flex items-center p-3 rounded-xl transition-colors duration-200 hover:bg-slate-700"><i class="fas fa-calendar-alt w-6 mr-3"></i> Events Calendar</a></li>
-                <li><a href="#" data-nav="finance" class="flex items-center p-3 rounded-xl transition-colors duration-200 hover:bg-slate-700"><i class="fas fa-dollar-sign w-6 mr-3"></i> Financial Management</a></li>
-                <li><a href="#" data-nav="contacts" class="flex items-center p-3 rounded-xl transition-colors duration-200 hover:bg-slate-700"><i class="fas fa-address-book w-6 mr-3"></i> Contact Management</a></li>
-                <li><a href="#" data-nav="reports" class="flex items-center p-3 rounded-xl transition-colors duration-200 hover:bg-slate-700"><i class="fas fa-file-alt w-6 mr-3"></i> Reporting & Analytics</a></li>
-                <li><a href="#" data-nav="settings" class="flex items-center p-3 rounded-xl transition-colors duration-200 hover:bg-slate-700"><i class="fas fa-cog w-6 mr-3"></i> Settings & Branding</a></li>
-            </ul>
-        </nav>
-    </aside>
+<body class="p-4 md:p-8">
 
-    <!-- Main Content Area -->
-    <main id="main-content" class="flex-1 ml-64 p-8">
-        <header class="flex justify-between items-center pb-4 mb-6 border-b border-gray-200">
-            <h2 id="page-title" class="text-3xl font-bold text-gray-800">Dashboard</h2>
-        </header>
+    <div class="fixed inset-0 flex flex-col items-center justify-center p-4 z-10">
+        <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold text-center mb-4 md:mb-6 leading-tight">Zarraz Cube</h1>
+        <p class="text-sm md:text-base text-center text-gray-400 mb-8 max-w-lg">
+            Drag the cube to rotate it. Use the buttons below to save and load its state from the Firebase database.
+        </p>
 
-        <!-- Dynamic Content Pages -->
-        <!-- Dashboard Page -->
-        <div id="dashboard-page" data-page="dashboard" class="space-y-8">
-            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-200 flex flex-col items-center justify-center">
-                    <i class="fas fa-users text-4xl text-sky-500 mb-4"></i>
-                    <h3 class="text-xl font-bold text-gray-700">Total Members</h3>
-                    <p id="total-members" class="text-4xl font-extrabold text-sky-600 mt-2">0</p>
-                </div>
-                <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-200 flex flex-col items-center justify-center">
-                    <i class="fas fa-dollar-sign text-4xl text-emerald-500 mb-4"></i>
-                    <h3 class="text-xl font-bold text-gray-700">Total Sales</h3>
-                    <p id="total-sales" class="text-4xl font-extrabold text-emerald-600 mt-2">$0.00</p>
-                </div>
-                <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-200 flex flex-col items-center justify-center">
-                    <i class="fas fa-box text-4xl text-amber-500 mb-4"></i>
-                    <h3 class="text-xl font-bold text-gray-700">Total Products</h3>
-                    <p id="total-products" class="text-4xl font-extrabold text-amber-600 mt-2">0</p>
-                </div>
-                <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-200 flex flex-col items-center justify-center">
-                    <i class="fas fa-calendar-check text-4xl text-purple-500 mb-4"></i>
-                    <h3 class="text-xl font-bold text-gray-700">Upcoming Events</h3>
-                    <p id="upcoming-events" class="text-4xl font-extrabold text-purple-600 mt-2">0</p>
-                </div>
-            </div>
-
-            <div class="mt-8 bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
-                <h3 class="text-2xl font-bold text-gray-800 mb-4">Low Stock Alerts</h3>
-                <div id="low-stock-list" class="space-y-2">
-                    <p class="text-gray-500">No low stock items at the moment.</p>
-                </div>
-            </div>
+        <!-- Container for messages -->
+        <div id="messageBox" class="bg-blue-800 bg-opacity-30 border-l-4 border-blue-500 text-blue-200 p-4 rounded-lg hidden mb-6 transition-all duration-300 w-full max-w-md" role="alert">
+            <p id="messageText" class="font-medium"></p>
         </div>
 
-        <!-- Stock Management Page -->
-        <div id="stock-page" data-page="stock">
-            <h3 class="text-2xl font-bold text-gray-800 mb-4">Stock Management</h3>
-            <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
-                <form id="product-form" class="space-y-4 mb-6">
-                    <input type="hidden" id="product-id">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <input type="text" id="product-name" placeholder="Product Name" required class="p-3 border rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-sky-500">
-                        <input type="text" id="product-sku" placeholder="SKU" required class="p-3 border rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-sky-500">
-                        <input type="number" id="product-price" placeholder="Price" step="0.01" required class="p-3 border rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-sky-500">
-                        <input type="number" id="product-stock" placeholder="Current Stock" required class="p-3 border rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-sky-500">
-                    </div>
-                    <button type="submit" class="bg-sky-600 text-white p-3 rounded-xl w-full font-bold hover:bg-sky-700 transition-colors">Add/Update Product</button>
-                </form>
-                <div class="mt-6">
-                    <h4 class="text-xl font-bold mb-2">Current Inventory</h4>
-                    <table class="min-w-full bg-white rounded-xl overflow-hidden shadow">
-                        <thead class="bg-gray-100">
-                            <tr>
-                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Name</th>
-                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">SKU</th>
-                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Price</th>
-                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Stock</th>
-                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="product-list">
-                            <!-- Product rows will be dynamically inserted here -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+        <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-4 w-full justify-center max-w-md">
+            <button id="saveButton" class="w-full sm:w-1/2 bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:bg-indigo-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                Save Cube State
+            </button>
+            <button id="loadButton" class="w-full sm:w-1/2 bg-green-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:bg-green-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500">
+                Load Cube State
+            </button>
         </div>
+    </div>
 
-        <!-- Members & Leadership Page -->
-        <div id="members-page" data-page="members">
-            <h3 class="text-2xl font-bold text-gray-800 mb-4">Members & Leadership Structure</h3>
-            <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-200 mb-6">
-                <form id="member-form" class="space-y-4 mb-6">
-                    <input type="hidden" id="member-id">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <input type="text" id="member-name" placeholder="Member Name" required class="p-3 border rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-sky-500">
-                        <input type="email" id="member-email" placeholder="Email" class="p-3 border rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-sky-500">
-                        <select id="member-rank" class="p-3 border rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-sky-500">
-                            <option value="">Select Rank</option>
-                            <option value="Associate">Associate</option>
-                            <option value="Team Leader">Team Leader</option>
-                            <option value="Manager">Manager</option>
-                            <option value="Director">Director</option>
-                        </select>
-                        <select id="member-upline" class="p-3 border rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-sky-500">
-                            <option value="">Select Upline (Optional)</option>
-                        </select>
-                        <div class="col-span-2">
-                            <label for="member-photo" class="block text-sm font-medium text-gray-700">Member Photo</label>
-                            <input type="file" id="member-photo" accept="image/*" class="p-2 border rounded-xl w-full mt-1 focus:outline-none focus:ring-2 focus:ring-sky-500">
-                        </div>
-                    </div>
-                    <button type="submit" class="bg-sky-600 text-white p-3 rounded-xl w-full font-bold hover:bg-sky-700 transition-colors">Add/Update Member</button>
-                </form>
-            </div>
-            <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
-                <h4 class="text-xl font-bold mb-2">Network Hierarchy</h4>
-                <div id="member-hierarchy" class="p-4 bg-gray-50 rounded-lg">
-                    <p class="text-gray-500 text-center">Hierarchy will appear here after adding members.</p>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Events Calendar Page -->
-        <div id="events-page" data-page="events">
-            <h3 class="text-2xl font-bold text-gray-800 mb-4">Events Calendar</h3>
-            <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
-                <form id="event-form" class="space-y-4 mb-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <input type="text" id="event-name" placeholder="Event Name" required class="p-3 border rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-sky-500">
-                        <input type="datetime-local" id="event-date" required class="p-3 border rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-sky-500">
-                        <textarea id="event-description" placeholder="Description" rows="3" class="p-3 border rounded-xl w-full md:col-span-2 focus:outline-none focus:ring-2 focus:ring-sky-500"></textarea>
-                        <div class="col-span-2">
-                             <label for="event-photo" class="block text-sm font-medium text-gray-700">Event Photo</label>
-                             <input type="file" id="event-photo" accept="image/*" class="p-2 border rounded-xl w-full mt-1 focus:outline-none focus:ring-2 focus:ring-sky-500">
-                        </div>
-                    </div>
-                    <button type="submit" class="bg-sky-600 text-white p-3 rounded-xl w-full font-bold hover:bg-sky-700 transition-colors">Add Event</button>
-                </form>
-                <div class="mt-6">
-                    <h4 class="text-xl font-bold mb-2">Upcoming Events</h4>
-                    <div id="event-list" class="space-y-4">
-                        <!-- Event cards will be dynamically inserted here -->
-                    </div>
-                </div>
-            </div>
-        </div>
+    <!-- The Canvas for the 3D cube -->
+    <canvas id="canvas"></canvas>
 
-        <!-- Financial Management Page -->
-        <div id="finance-page" data-page="finance">
-            <h3 class="text-2xl font-bold text-gray-800 mb-4">Financial Management</h3>
-            <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
-                <form id="transaction-form" class="space-y-4 mb-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <select id="transaction-type" required class="p-3 border rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-sky-500">
-                            <option value="">Select Transaction Type</option>
-                            <option value="Income">Income</option>
-                            <option value="Expense">Expense</option>
-                            <option value="Commission">Commission Payout</option>
-                        </select>
-                        <input type="number" id="transaction-amount" placeholder="Amount" step="0.01" required class="p-3 border rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-sky-500">
-                    </div>
-                    <textarea id="transaction-description" placeholder="Description" rows="3" class="p-3 border rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-sky-500"></textarea>
-                    <button type="submit" class="bg-sky-600 text-white p-3 rounded-xl w-full font-bold hover:bg-sky-700 transition-colors">Record Transaction</button>
-                </form>
-                <div class="mt-6">
-                    <h4 class="text-xl font-bold mb-2">Recent Transactions</h4>
-                    <table class="min-w-full bg-white rounded-xl overflow-hidden shadow">
-                        <thead class="bg-gray-100">
-                            <tr>
-                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Date</th>
-                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Type</th>
-                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Amount</th>
-                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Description</th>
-                            </tr>
-                        </thead>
-                        <tbody id="transaction-list">
-                            <!-- Transaction rows will be dynamically inserted here -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+    <script type="module">
+        // IMPORTANT: Use the global variables provided by the Canvas environment.
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-        <!-- Contact Management Page -->
-        <div id="contacts-page" data-page="contacts">
-            <h3 class="text-2xl font-bold text-gray-800 mb-4">Contact Management</h3>
-            <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-200 mb-6">
-                <form id="contact-form" class="space-y-4 mb-6">
-                    <input type="hidden" id="contact-id">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <input type="text" id="contact-name" placeholder="Name" required class="p-3 border rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-sky-500">
-                        <input type="email" id="contact-email" placeholder="Email" class="p-3 border rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-sky-500">
-                        <input type="text" id="contact-phone" placeholder="Phone" class="p-3 border rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-sky-500">
-                        <select id="contact-type" required class="p-3 border rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-sky-500">
-                            <option value="">Select Type</option>
-                            <option value="Client">Client</option>
-                            <option value="Supplier">Supplier</option>
-                        </select>
-                    </div>
-                    <button type="submit" class="bg-sky-600 text-white p-3 rounded-xl w-full font-bold hover:bg-sky-700 transition-colors">Add/Update Contact</button>
-                </form>
-            </div>
-            <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
-                <h4 class="text-xl font-bold mb-2">All Contacts</h4>
-                <div class="mt-4">
-                    <table class="min-w-full bg-white rounded-xl overflow-hidden shadow">
-                        <thead class="bg-gray-100">
-                            <tr>
-                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Name</th>
-                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Type</th>
-                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Email</th>
-                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Phone</th>
-                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="contact-list">
-                            <!-- Contact rows will be dynamically inserted here -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        <!-- Reporting & Analytics Page -->
-        <div id="reports-page" data-page="reports">
-            <h3 class="text-2xl font-bold text-gray-800 mb-4">Reporting & Analytics</h3>
-            <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
-                <h4 class="text-xl font-bold mb-4">Sales Report</h4>
-                <div id="sales-report-container">
-                    <p class="text-gray-500">No sales data to display yet.</p>
-                </div>
-            </div>
-        </div>
+        // Global variables for Firebase services and user ID
+        let app;
+        let db;
+        let auth;
+        let userId = null;
 
-        <!-- Settings & Branding Page -->
-        <div id="settings-page" data-page="settings">
-            <h3 class="text-2xl font-bold text-gray-800 mb-4">Settings & Branding</h3>
-            <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
-                <h4 class="text-xl font-bold mb-4">Customize Branding</h4>
-                <div class="space-y-4">
-                    <div class="flex flex-col">
-                        <label for="logo-upload" class="mb-2 text-gray-700 font-semibold">Upload Company Logo:</label>
-                        <input type="file" id="logo-upload" accept="image/*" class="p-2 border rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-sky-500">
-                    </div>
-                    <div class="flex flex-col">
-                        <label for="company-name" class="mb-2 text-gray-700 font-semibold">Company Name:</label>
-                        <input type="text" id="company-name" value="Zarraz Cube" class="p-2 border rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-sky-500">
-                    </div>
-                    <button id="save-branding" class="bg-sky-600 text-white p-3 rounded-xl w-full font-bold hover:bg-sky-700 transition-colors">Save Changes</button>
-                </div>
-            </div>
-        </div>
+        // UI elements
+        const saveButton = document.getElementById('saveButton');
+        const loadButton = document.getElementById('loadButton');
+        const messageBox = document.getElementById('messageBox');
+        const messageText = document.getElementById('messageText');
+        const canvas = document.getElementById('canvas');
 
-        <!-- Message Box for Alerts -->
-        <div id="message-box" class="fixed bottom-4 right-4 p-4 rounded-xl shadow-lg text-white font-bold hidden transition-opacity duration-300 z-50"></div>
-    </main>
+        // --- Three.js Setup ---
+        let scene, camera, renderer, cube;
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
 
-    <script>
-        // Use a self-invoking async function to handle database initialization
-        (async function() {
-            // --- Core App Logic & Global Variables ---
-            const mainContent = document.getElementById('main-content');
-            const pageTitle = document.getElementById('page-title');
-            const navLinks = document.querySelectorAll('a[data-nav]');
-            const pages = document.querySelectorAll('[data-page]');
-            const messageBox = document.getElementById('message-box');
-            let db = null;
-            let SQL = null;
-            const DB_FILE_NAME = 'zarraz_cube.db';
+        function initThreeJS() {
+            // Scene, Camera, Renderer
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            camera.position.z = 2;
 
-            // Function to display messages to the user
-            const showMessage = (message, type = 'success') => {
-                messageBox.textContent = message;
-                messageBox.className = `fixed bottom-4 right-4 p-4 rounded-xl shadow-lg text-white font-bold transition-opacity duration-300 z-50`;
-                if (type === 'success') {
-                    messageBox.classList.add('bg-green-500');
-                } else if (type === 'error') {
-                    messageBox.classList.add('bg-red-500');
-                }
-                messageBox.classList.remove('hidden');
-                setTimeout(() => {
-                    messageBox.classList.add('hidden');
-                }, 3000);
-            };
+            // Cube geometry, material, and mesh
+            const geometry = new THREE.BoxGeometry(1, 1, 1);
+            const material = new THREE.MeshNormalMaterial(); // A simple, clean material
+            cube = new THREE.Mesh(geometry, material);
+            scene.add(cube);
 
-            // --- Database Initialization and Setup ---
-            const initDatabase = async () => {
-                try {
-                    // Load the sql.js library
-                    SQL = await initSqlJs({ locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/${file}` });
-                    
-                    // Check if a database file exists (simulated local storage for persistence)
-                    const dbData = localStorage.getItem(DB_FILE_NAME);
-                    if (dbData) {
-                        const buffer = Uint8Array.from(atob(dbData), c => c.charCodeAt(0));
-                        db = new SQL.Database(buffer);
-                        // Add new columns if they don't exist
-                        runQuery('ALTER TABLE members ADD COLUMN photo_data TEXT');
-                        runQuery('ALTER TABLE events ADD COLUMN photo_data TEXT');
-                        showMessage('Database loaded successfully!', 'success');
-                    } else {
-                        db = new SQL.Database();
-                        await createTables();
-                        showMessage('New database created!', 'success');
-                    }
-                } catch (error) {
-                    showMessage('Error initializing database: ' + error.message, 'error');
-                }
-            };
+            // Handle window resizing
+            window.addEventListener('resize', onWindowResize, false);
+            function onWindowResize() {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
 
-            // Save database to local storage
-            const saveDatabase = () => {
-                if (!db) return;
-                const data = db.export();
-                const binaryString = String.fromCharCode.apply(null, data);
-                localStorage.setItem(DB_FILE_NAME, btoa(binaryString));
-            };
-
-            // Function to execute SQL statements and handle errors
-            const runQuery = (sql, params = []) => {
-                try {
-                    const res = db.exec(sql, params);
-                    saveDatabase(); // Save after every successful write
-                    return res;
-                } catch (error) {
-                    showMessage('Database error: ' + error.message, 'error');
-                    console.error('Database error:', error);
-                    return null;
-                }
-            };
-
-            // Create initial database tables
-            const createTables = async () => {
-                if (!db) return;
-                const sql = `
-                    CREATE TABLE IF NOT EXISTS products (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        name TEXT NOT NULL,
-                        sku TEXT UNIQUE NOT NULL,
-                        price REAL NOT NULL,
-                        stock INTEGER NOT NULL
-                    );
-                    CREATE TABLE IF NOT EXISTS members (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        name TEXT NOT NULL,
-                        email TEXT,
-                        rank TEXT,
-                        upline_id INTEGER,
-                        photo_data TEXT,
-                        FOREIGN KEY (upline_id) REFERENCES members (id)
-                    );
-                    CREATE TABLE IF NOT EXISTS events (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        name TEXT NOT NULL,
-                        date TEXT NOT NULL,
-                        description TEXT,
-                        photo_data TEXT
-                    );
-                    CREATE TABLE IF NOT EXISTS transactions (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        date TEXT NOT NULL,
-                        type TEXT NOT NULL,
-                        amount REAL NOT NULL,
-                        description TEXT
-                    );
-                    CREATE TABLE IF NOT EXISTS contacts (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        name TEXT NOT NULL,
-                        email TEXT,
-                        phone TEXT,
-                        type TEXT NOT NULL
-                    );
-                `;
-                runQuery(sql);
-            };
-
-            // --- UI & Navigation Logic ---
-            const showPage = (pageId) => {
-                pages.forEach(page => page.style.display = 'none');
-                const activePage = document.getElementById(pageId + '-page');
-                if (activePage) {
-                    activePage.style.display = 'block';
-                    pageTitle.textContent = activePage.getAttribute('data-page').split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-                    navLinks.forEach(link => {
-                        link.classList.remove('bg-slate-700', 'text-sky-400', 'font-semibold');
-                        if (link.getAttribute('data-nav') === pageId) {
-                            link.classList.add('bg-slate-700', 'text-sky-400', 'font-semibold');
-                        }
-                    });
-                    // Refresh data for the current page
-                    refreshData(pageId);
-                }
-            };
-
-            const refreshData = async (pageId) => {
-                switch (pageId) {
-                    case 'dashboard':
-                        await updateDashboard();
-                        break;
-                    case 'stock':
-                        await renderProducts();
-                        break;
-                    case 'members':
-                        await renderMembers();
-                        break;
-                    case 'events':
-                        await renderEvents();
-                        break;
-                    case 'finance':
-                        await renderTransactions();
-                        break;
-                    case 'contacts':
-                        await renderContacts();
-                        break;
-                    case 'reports':
-                        await generateReports();
-                        break;
-                    default:
-                        break;
-                }
-            };
-
-            // Event listeners for navigation
-            navLinks.forEach(link => {
-                link.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    showPage(e.currentTarget.getAttribute('data-nav'));
-                });
+            // --- Mouse Interaction ---
+            document.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                previousMousePosition.x = e.clientX;
+                previousMousePosition.y = e.clientY;
             });
 
-            // --- Module Functionality ---
-
-            // Dashboard
-            const updateDashboard = async () => {
-                const totalMembersEl = document.getElementById('total-members');
-                const totalSalesEl = document.getElementById('total-sales');
-                const totalProductsEl = document.getElementById('total-products');
-                const upcomingEventsEl = document.getElementById('upcoming-events');
-                const lowStockListEl = document.getElementById('low-stock-list');
-
-                // Get counts from database
-                const memberCount = runQuery('SELECT COUNT(*) FROM members')[0]?.values[0][0] || 0;
-                const totalSales = runQuery('SELECT SUM(amount) FROM transactions WHERE type="Income"')[0]?.values[0][0] || 0;
-                const productCount = runQuery('SELECT COUNT(*) FROM products')[0]?.values[0][0] || 0;
-                const upcomingEvents = runQuery('SELECT COUNT(*) FROM events WHERE date > ?', [new Date().toISOString()])[0]?.values[0][0] || 0;
-                
-                totalMembersEl.textContent = memberCount;
-                totalSalesEl.textContent = `$${totalSales.toFixed(2)}`;
-                totalProductsEl.textContent = productCount;
-                upcomingEventsEl.textContent = upcomingEvents;
-
-                // Low stock alerts (example: less than 10 items)
-                const lowStock = runQuery('SELECT * FROM products WHERE stock <= 10');
-                lowStockListEl.innerHTML = '';
-                if (lowStock && lowStock[0] && lowStock[0].values.length > 0) {
-                    lowStock[0].values.forEach(row => {
-                        const item = lowStock[0].columns.reduce((obj, col, i) => { obj[col] = row[i]; return obj; }, {});
-                        const p = document.createElement('p');
-                        p.className = 'p-3 bg-red-100 text-red-700 rounded-lg font-medium';
-                        p.textContent = `🚨 Low stock alert: ${item.name} (SKU: ${item.sku}) has only ${item.stock} left.`;
-                        lowStockListEl.appendChild(p);
-                    });
-                } else {
-                    lowStockListEl.innerHTML = '<p class="text-gray-500">No low stock items at the moment.</p>';
-                }
-            };
-
-            // Stock Management
-            const productForm = document.getElementById('product-form');
-            const productList = document.getElementById('product-list');
-
-            const renderProducts = async () => {
-                const res = runQuery('SELECT * FROM products ORDER BY name ASC');
-                productList.innerHTML = '';
-                if (res && res[0] && res[0].values.length > 0) {
-                    res[0].values.forEach(row => {
-                        const item = res[0].columns.reduce((obj, col, i) => { obj[col] = row[i]; return obj; }, {});
-                        const tr = document.createElement('tr');
-                        tr.className = 'border-t border-gray-200';
-                        tr.innerHTML = `
-                            <td class="py-3 px-4">${item.name}</td>
-                            <td class="py-3 px-4">${item.sku}</td>
-                            <td class="py-3 px-4">$${item.price.toFixed(2)}</td>
-                            <td class="py-3 px-4">${item.stock}</td>
-                            <td class="py-3 px-4 space-x-2">
-                                <button data-id="${item.id}" class="update-product bg-sky-100 text-sky-600 p-2 rounded-full hover:bg-sky-200 transition-colors"><i class="fas fa-edit"></i></button>
-                                <button data-id="${item.id}" class="delete-product bg-red-100 text-red-600 p-2 rounded-full hover:bg-red-200 transition-colors"><i class="fas fa-trash"></i></button>
-                            </td>
-                        `;
-                        productList.appendChild(tr);
-                    });
-                } else {
-                    productList.innerHTML = '<tr><td colspan="5" class="py-4 px-4 text-center text-gray-500">No products in inventory.</td></tr>';
-                }
-            };
-
-            productForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const id = document.getElementById('product-id').value;
-                const name = document.getElementById('product-name').value;
-                const sku = document.getElementById('product-sku').value;
-                const price = parseFloat(document.getElementById('product-price').value);
-                const stock = parseInt(document.getElementById('product-stock').value, 10);
-
-                if (id) {
-                    runQuery('UPDATE products SET name=?, sku=?, price=?, stock=? WHERE id=?', [name, sku, price, stock, id]);
-                    showMessage('Product updated successfully!');
-                } else {
-                    runQuery('INSERT INTO products (name, sku, price, stock) VALUES (?, ?, ?, ?)', [name, sku, price, stock]);
-                    showMessage('Product added successfully!');
-                }
-                productForm.reset();
-                document.getElementById('product-id').value = '';
-                await renderProducts();
-                await updateDashboard();
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
             });
 
-            productList.addEventListener('click', async (e) => {
-                const id = e.target.closest('button').getAttribute('data-id');
-                if (e.target.closest('.delete-product')) {
-                    runQuery('DELETE FROM products WHERE id=?', [id]);
-                    showMessage('Product deleted successfully!');
-                    await renderProducts();
-                    await updateDashboard();
-                } else if (e.target.closest('.update-product')) {
-                    const res = runQuery('SELECT * FROM products WHERE id=?', [id]);
-                    if (res && res[0] && res[0].values.length > 0) {
-                        const item = res[0].columns.reduce((obj, col, i) => { obj[col] = res[0].values[0][i]; return obj; }, {});
-                        document.getElementById('product-id').value = item.id;
-                        document.getElementById('product-name').value = item.name;
-                        document.getElementById('product-sku').value = item.sku;
-                        document.getElementById('product-price').value = item.price;
-                        document.getElementById('product-stock').value = item.stock;
-                    }
-                }
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                const deltaMove = {
+                    x: e.clientX - previousMousePosition.x,
+                    y: e.clientY - previousMousePosition.y
+                };
+                cube.rotation.y += deltaMove.x * 0.005;
+                cube.rotation.x += deltaMove.y * 0.005;
+                previousMousePosition.x = e.clientX;
+                previousMousePosition.y = e.clientY;
             });
 
-            // Members & Leadership
-            const memberForm = document.getElementById('member-form');
-            const memberHierarchy = document.getElementById('member-hierarchy');
-            const memberUplineSelect = document.getElementById('member-upline');
-            const memberPhotoInput = document.getElementById('member-photo');
-
-            const renderMembers = async () => {
-                const members = runQuery('SELECT * FROM members');
-                
-                // Update upline select list
-                memberUplineSelect.innerHTML = '<option value="">Select Upline (Optional)</option>';
-                if (members && members[0] && members[0].values.length > 0) {
-                    members[0].values.forEach(row => {
-                        const member = members[0].columns.reduce((obj, col, i) => { obj[col] = row[i]; return obj; }, {});
-                        const option = document.createElement('option');
-                        option.value = member.id;
-                        option.textContent = member.name;
-                        memberUplineSelect.appendChild(option);
-                    });
-                }
-
-                // Build and render hierarchy
-                if (members && members[0] && members[0].values.length > 0) {
-                    const memberData = members[0].values.map(row => {
-                        const member = members[0].columns.reduce((obj, col, i) => { obj[col] = row[i]; return obj; }, {});
-                        return member;
-                    });
-                    
-                    const buildHierarchy = (uplineId = null) => {
-                        const children = memberData.filter(m => m.upline_id === uplineId);
-                        if (children.length === 0) return '';
-                        let html = '<ul>';
-                        children.forEach(child => {
-                            const photoHtml = child.photo_data ? `<img src="${child.photo_data}" class="w-10 h-10 rounded-full mr-3 border-2 border-slate-300">` : '';
-                            html += `<li class="ml-4 mt-2"><div class="flex items-center p-2 bg-slate-100 rounded-lg shadow-sm font-medium text-slate-800">${photoHtml} ${child.name} (${child.rank})</div>${buildHierarchy(child.id)}</li>`;
-                        });
-                        html += '</ul>';
-                        return html;
-                    };
-                    memberHierarchy.innerHTML = buildHierarchy();
-                } else {
-                    memberHierarchy.innerHTML = '<p class="text-gray-500 text-center">Hierarchy will appear here after adding members.</p>';
-                }
-            };
-
-            memberForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const name = document.getElementById('member-name').value;
-                const email = document.getElementById('member-email').value;
-                const rank = document.getElementById('member-rank').value;
-                const uplineId = document.getElementById('member-upline').value || null;
-                const photoFile = memberPhotoInput.files[0];
-
-                try {
-                    let photoData = null;
-                    if (photoFile) {
-                        const reader = new FileReader();
-                        reader.onload = function(event) {
-                            photoData = event.target.result;
-                            runQuery('INSERT INTO members (name, email, rank, upline_id, photo_data) VALUES (?, ?, ?, ?, ?)', [name, email, rank, uplineId, photoData]);
-                            showMessage('Member added successfully!');
-                            memberForm.reset();
-                            renderMembers();
-                            updateDashboard();
-                        };
-                        reader.readAsDataURL(photoFile);
-                    } else {
-                        runQuery('INSERT INTO members (name, email, rank, upline_id, photo_data) VALUES (?, ?, ?, ?, ?)', [name, email, rank, uplineId, photoData]);
-                        showMessage('Member added successfully!');
-                        memberForm.reset();
-                        renderMembers();
-                        updateDashboard();
-                    }
-                } catch (error) {
-                    showMessage('Error adding member: ' + error.message, 'error');
-                }
+            // Touch event listeners for mobile devices
+            document.addEventListener('touchstart', (e) => {
+                isDragging = true;
+                const touch = e.touches[0];
+                previousMousePosition.x = touch.clientX;
+                previousMousePosition.y = touch.clientY;
             });
 
-            // Events Calendar
-            const eventForm = document.getElementById('event-form');
-            const eventList = document.getElementById('event-list');
-            const eventPhotoInput = document.getElementById('event-photo');
+            document.addEventListener('touchend', () => {
+                isDragging = false;
+            });
 
-            const renderEvents = async () => {
-                const events = runQuery('SELECT * FROM events ORDER BY date ASC');
-                eventList.innerHTML = '';
-                if (events && events[0] && events[0].values.length > 0) {
-                    events[0].values.forEach(row => {
-                        const event = events[0].columns.reduce((obj, col, i) => { obj[col] = row[i]; return obj; }, {});
-                        const date = new Date(event.date).toLocaleString();
-                        const photoHtml = event.photo_data ? `<img src="${event.photo_data}" class="w-full h-40 object-cover rounded-lg mb-2">` : '';
-                        const card = document.createElement('div');
-                        card.className = 'bg-gray-100 p-4 rounded-xl shadow-sm border border-gray-200';
-                        card.innerHTML = `
-                            ${photoHtml}
-                            <div class="flex justify-between items-center mb-2">
-                                <h5 class="text-lg font-bold text-gray-800">${event.name}</h5>
-                                <span class="text-sm text-gray-500">${date}</span>
-                            </div>
-                            <p class="text-gray-600 text-sm">${event.description || 'No description.'}</p>
-                        `;
-                        eventList.appendChild(card);
-                    });
-                } else {
-                    eventList.innerHTML = '<p class="text-gray-500 text-center">No upcoming events scheduled.</p>';
-                }
-            };
+            document.addEventListener('touchmove', (e) => {
+                if (!isDragging) return;
+                const touch = e.touches[0];
+                const deltaMove = {
+                    x: touch.clientX - previousMousePosition.x,
+                    y: touch.clientY - previousMousePosition.y
+                };
+                cube.rotation.y += deltaMove.x * 0.005;
+                cube.rotation.x += deltaMove.y * 0.005;
+                previousMousePosition.x = touch.clientX;
+                previousMousePosition.y = touch.clientY;
+            });
 
-            eventForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const name = document.getElementById('event-name').value;
-                const date = document.getElementById('event-date').value;
-                const description = document.getElementById('event-description').value;
-                const photoFile = eventPhotoInput.files[0];
-                
-                if (new Date(date) < new Date()) {
-                    showMessage('Event date cannot be in the past.', 'error');
+            // Animation loop
+            function animate() {
+                requestAnimationFrame(animate);
+                renderer.render(scene, camera);
+            }
+            animate();
+        }
+
+        // --- Firebase Integration ---
+        // Function to show messages to the user
+        function showMessage(text, isError = false) {
+            messageText.textContent = text;
+            messageBox.classList.remove('hidden');
+            if (isError) {
+                messageBox.classList.remove('bg-blue-800', 'bg-opacity-30', 'border-blue-500', 'text-blue-200');
+                messageBox.classList.add('bg-red-800', 'bg-opacity-30', 'border-red-500', 'text-red-200');
+            } else {
+                messageBox.classList.remove('bg-red-800', 'bg-opacity-30', 'border-red-500', 'text-red-200');
+                messageBox.classList.add('bg-blue-800', 'bg-opacity-30', 'border-blue-500', 'text-blue-200');
+            }
+            setTimeout(() => {
+                messageBox.classList.add('hidden');
+            }, 5000);
+        }
+
+        // Initialize Firebase and set up auth listener
+        async function initializeFirebase() {
+            try {
+                if (!firebaseConfig) {
+                    console.error("Firebase config is not defined. Cannot initialize the app.");
+                    showMessage("Error: Firebase config is missing. Cannot initialize.", true);
                     return;
                 }
-
-                try {
-                    let photoData = null;
-                    if (photoFile) {
-                        const reader = new FileReader();
-                        reader.onload = function(event) {
-                            photoData = event.target.result;
-                            runQuery('INSERT INTO events (name, date, description, photo_data) VALUES (?, ?, ?, ?)', [name, date, description, photoData]);
-                            showMessage('Event added successfully!');
-                            eventForm.reset();
-                            renderEvents();
-                            updateDashboard();
-                        };
-                        reader.readAsDataURL(photoFile);
+                
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                // Use onAuthStateChanged to ensure we have a user before doing Firestore ops
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        console.log("User authenticated:", userId);
+                        showMessage("Connected to Firebase successfully!");
                     } else {
-                        runQuery('INSERT INTO events (name, date, description, photo_data) VALUES (?, ?, ?, ?)', [name, date, description, photoData]);
-                        showMessage('Event added successfully!');
-                        eventForm.reset();
-                        renderEvents();
-                        updateDashboard();
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
                     }
-                } catch (error) {
-                    showMessage('Error adding event: ' + error.message, 'error');
-                }
-            });
+                });
+            } catch (error) {
+                console.error("Error initializing Firebase:", error);
+                showMessage(`Error initializing Firebase: ${error.message}`, true);
+            }
+        }
 
-            // Financial Management
-            const transactionForm = document.getElementById('transaction-form');
-            const transactionList = document.getElementById('transaction-list');
+        // --- Save Cube State to Firestore ---
+        async function saveCubeState() {
+            if (!userId) {
+                showMessage("Authentication not ready. Please wait a moment.", true);
+                return;
+            }
 
-            const renderTransactions = async () => {
-                const transactions = runQuery('SELECT * FROM transactions ORDER BY date DESC LIMIT 20');
-                transactionList.innerHTML = '';
-                if (transactions && transactions[0] && transactions[0].values.length > 0) {
-                    transactions[0].values.forEach(row => {
-                        const transaction = transactions[0].columns.reduce((obj, col, i) => { obj[col] = row[i]; return obj; }, {});
-                        const tr = document.createElement('tr');
-                        tr.className = 'border-t border-gray-200';
-                        tr.innerHTML = `
-                            <td class="py-3 px-4 text-sm">${new Date(transaction.date).toLocaleDateString()}</td>
-                            <td class="py-3 px-4 text-sm">${transaction.type}</td>
-                            <td class="py-3 px-4 text-sm">$${transaction.amount.toFixed(2)}</td>
-                            <td class="py-3 px-4 text-sm">${transaction.description}</td>
-                        `;
-                        transactionList.appendChild(tr);
-                    });
-                } else {
-                    transactionList.innerHTML = '<tr><td colspan="4" class="py-4 px-4 text-center text-gray-500">No transactions recorded.</td></tr>';
-                }
-            };
+            const docId = 'zarraz-state';
+            // The path has been changed to a public collection to allow shared data
+            const path = `artifacts/${appId}/public/cube-state/${docId}`;
+            const docRef = doc(db, path);
 
-            transactionForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const type = document.getElementById('transaction-type').value;
-                const amount = parseFloat(document.getElementById('transaction-amount').value);
-                const description = document.getElementById('transaction-description').value;
-
-                runQuery('INSERT INTO transactions (date, type, amount, description) VALUES (?, ?, ?, ?)', [new Date().toISOString(), type, amount, description]);
-                showMessage('Transaction recorded successfully!');
-                transactionForm.reset();
-                await renderTransactions();
-                await updateDashboard();
-            });
-
-            // Contact Management
-            const contactForm = document.getElementById('contact-form');
-            const contactList = document.getElementById('contact-list');
-
-            const renderContacts = async () => {
-                const contacts = runQuery('SELECT * FROM contacts ORDER BY name ASC');
-                contactList.innerHTML = '';
-                if (contacts && contacts[0] && contacts[0].values.length > 0) {
-                    contacts[0].values.forEach(row => {
-                        const contact = contacts[0].columns.reduce((obj, col, i) => { obj[col] = row[i]; return obj; }, {});
-                        const tr = document.createElement('tr');
-                        tr.className = 'border-t border-gray-200';
-                        tr.innerHTML = `
-                            <td class="py-3 px-4">${contact.name}</td>
-                            <td class="py-3 px-4">${contact.type}</td>
-                            <td class="py-3 px-4">${contact.email || '-'}</td>
-                            <td class="py-3 px-4">${contact.phone || '-'}</td>
-                            <td class="py-3 px-4 space-x-2">
-                                <button data-id="${contact.id}" class="delete-contact bg-red-100 text-red-600 p-2 rounded-full hover:bg-red-200 transition-colors"><i class="fas fa-trash"></i></button>
-                            </td>
-                        `;
-                        contactList.appendChild(tr);
-                    });
-                } else {
-                    contactList.innerHTML = '<tr><td colspan="5" class="py-4 px-4 text-center text-gray-500">No contacts saved.</td></tr>';
-                }
-            };
-
-            contactForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const name = document.getElementById('contact-name').value;
-                const email = document.getElementById('contact-email').value;
-                const phone = document.getElementById('contact-phone').value;
-                const type = document.getElementById('contact-type').value;
-                
-                runQuery('INSERT INTO contacts (name, email, phone, type) VALUES (?, ?, ?, ?)', [name, email, phone, type]);
-                showMessage('Contact added successfully!');
-                contactForm.reset();
-                await renderContacts();
-            });
-
-            contactList.addEventListener('click', async (e) => {
-                if (e.target.closest('.delete-contact')) {
-                    const id = e.target.closest('button').getAttribute('data-id');
-                    runQuery('DELETE FROM contacts WHERE id=?', [id]);
-                    showMessage('Contact deleted successfully!');
-                    await renderContacts();
-                }
-            });
-
-            // Reporting & Analytics
-            const generateReports = async () => {
-                const salesReportContainer = document.getElementById('sales-report-container');
-                const sales = runQuery('SELECT * FROM transactions WHERE type="Income" ORDER BY date ASC');
-
-                salesReportContainer.innerHTML = '';
-                if (sales && sales[0] && sales[0].values.length > 0) {
-                    const salesData = sales[0].values.map(row => {
-                        const transaction = sales[0].columns.reduce((obj, col, i) => { obj[col] = row[i]; return obj; }, {});
-                        return transaction;
-                    });
-
-                    // Simple chart placeholder (you would integrate a library like Chart.js here)
-                    const salesChart = document.createElement('div');
-                    salesChart.className = 'p-4 bg-gray-100 rounded-xl shadow-inner';
-                    salesChart.innerHTML = '<p class="text-center text-gray-600">This is where a sales chart would be. Displaying data points below.</p>';
-                    salesReportContainer.appendChild(salesChart);
-
-                    const table = document.createElement('table');
-                    table.className = 'min-w-full bg-white rounded-xl overflow-hidden shadow mt-4';
-                    table.innerHTML = `
-                        <thead class="bg-gray-100">
-                            <tr>
-                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Date</th>
-                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Amount</th>
-                                <th class="py-3 px-4 text-left text-sm font-semibold text-gray-600">Description</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${salesData.map(sale => `
-                                <tr>
-                                    <td class="py-3 px-4 text-sm">${new Date(sale.date).toLocaleDateString()}</td>
-                                    <td class="py-3 px-4 text-sm">$${sale.amount.toFixed(2)}</td>
-                                    <td class="py-3 px-4 text-sm">${sale.description}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    `;
-                    salesReportContainer.appendChild(table);
-                } else {
-                    salesReportContainer.innerHTML = '<p class="text-gray-500">No sales data to display yet.</p>';
-                }
-            };
-
-            // Settings & Branding
-            const logoUpload = document.getElementById('logo-upload');
-            const saveBrandingBtn = document.getElementById('save-branding');
-            const logoDisplay = document.getElementById('logo-display');
-            const companyNameInput = document.getElementById('company-name');
-            const sidebarH1 = document.querySelector('#sidebar h1');
-
-            // Load saved branding
-            const loadBranding = () => {
-                const savedLogo = localStorage.getItem('company-logo');
-                const savedName = localStorage.getItem('company-name');
-                if (savedLogo) {
-                    logoDisplay.src = savedLogo;
-                }
-                if (savedName) {
-                    companyNameInput.value = savedName;
-                    sidebarH1.textContent = savedName;
-                }
-            };
-
-            saveBrandingBtn.addEventListener('click', () => {
-                const reader = new FileReader();
-                reader.onload = () => {
-                    localStorage.setItem('company-logo', reader.result);
-                    logoDisplay.src = reader.result;
-                    showMessage('Branding updated successfully!');
+            try {
+                // Get the current rotation angles of the cube
+                const rotation = {
+                    x: cube.rotation.x,
+                    y: cube.rotation.y,
+                    z: cube.rotation.z
                 };
-                if (logoUpload.files[0]) {
-                    reader.readAsDataURL(logoUpload.files[0]);
-                } else {
-                    showMessage('No logo selected. Name saved.', 'info');
-                }
-                
-                const newName = companyNameInput.value;
-                localStorage.setItem('company-name', newName);
-                sidebarH1.textContent = newName;
-            });
 
-            // --- Initial App Load ---
-            await initDatabase();
-            loadBranding();
-            showPage('dashboard');
-        })();
+                await setDoc(docRef, { 
+                    rotation, 
+                    lastUpdated: new Date() 
+                });
+                
+                console.log(`Cube state saved to: ${path}`);
+                showMessage("Cube state saved to the database!");
+            } catch (e) {
+                console.error("Error saving document: ", e);
+                showMessage(`Error saving state: ${e.message}`, true);
+            }
+        }
+
+        // --- Load Cube State from Firestore ---
+        async function loadCubeState() {
+            if (!userId) {
+                showMessage("Authentication not ready. Please wait a moment.", true);
+                return;
+            }
+
+            const docId = 'zarraz-state';
+            // The path has been changed to a public collection
+            const path = `artifacts/${appId}/public/cube-state/${docId}`;
+            const docRef = doc(db, path);
+
+            try {
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    const rotation = data.rotation;
+                    
+                    // Apply the loaded rotation to the cube
+                    cube.rotation.x = rotation.x;
+                    cube.rotation.y = rotation.y;
+                    cube.rotation.z = rotation.z;
+
+                    console.log("Cube state loaded:", data);
+                    showMessage("Cube state loaded from the database!");
+                } else {
+                    showMessage("No saved cube state found.", true);
+                    console.log("No saved state found!");
+                }
+            } catch (e) {
+                console.error("Error loading document: ", e);
+                showMessage(`Error loading state: ${e.message}`, true);
+            }
+        }
+        
+        // Add event listeners
+        saveButton.addEventListener('click', saveCubeState);
+        loadButton.addEventListener('click', loadCubeState);
+
+        // Run on window load
+        window.onload = function() {
+            initializeFirebase();
+            initThreeJS();
+        }
     </script>
 </body>
 </html>
-Initial commit of the app
