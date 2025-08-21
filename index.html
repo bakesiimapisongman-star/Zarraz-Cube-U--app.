@@ -24,7 +24,7 @@
     <div class="fixed inset-0 flex flex-col items-center justify-center p-4 z-10">
         <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold text-center mb-4 md:mb-6 leading-tight">Zarraz Cube</h1>
         <p class="text-sm md:text-base text-center text-gray-400 mb-8 max-w-lg">
-            Create an account or log in to save and load your personal cube state.
+            Create an account or log in to save and load the shared cube state.
         </p>
 
         <!-- Container for messages -->
@@ -72,7 +72,7 @@
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Global variables for Firebase services and user ID
@@ -260,8 +260,8 @@
             }
 
             const docId = 'zarraz-state';
-            // The path is now private and specific to the authenticated user
-            const path = `artifacts/${appId}/users/${userId}/cube-state/${docId}`;
+            // The path is now public and accessible to all authorized users
+            const path = `artifacts/${appId}/public/cube-state/${docId}`;
             const docRef = doc(db, path);
 
             try {
@@ -276,8 +276,8 @@
                     lastUpdated: new Date() 
                 });
                 
-                console.log(`Cube state saved for user ${userId}.`);
-                showMessage("Cube state saved to your account!");
+                console.log(`Cube state saved to public space.`);
+                showMessage("Cube state saved to public space!");
             } catch (e) {
                 console.error("Error saving document: ", e);
                 showMessage(`Error saving state: ${e.message}`, true);
@@ -291,7 +291,7 @@
             }
 
             const docId = 'zarraz-state';
-            const path = `artifacts/${appId}/users/${userId}/cube-state/${docId}`;
+            const path = `artifacts/${appId}/public/cube-state/${docId}`;
             const docRef = doc(db, path);
 
             try {
@@ -305,10 +305,10 @@
                     cube.rotation.y = rotation.y;
                     cube.rotation.z = rotation.z;
 
-                    console.log(`Cube state loaded for user ${userId}.`);
-                    showMessage("Cube state loaded from your account!");
+                    console.log(`Cube state loaded from public space.`);
+                    showMessage("Cube state loaded from public space!");
                 } else {
-                    showMessage("No saved cube state found for your account.", true);
+                    showMessage("No saved cube state found in public space.", true);
                     console.log("No saved state found!");
                 }
             } catch (e) {
@@ -317,17 +317,17 @@
             }
         }
         
-        // Add event listeners for all buttons
-        signUpButton.addEventListener('click', signUp);
-        signInButton.addEventListener('click', signIn);
-        signOutButton.addEventListener('click', signOutUser);
-        saveButton.addEventListener('click', saveCubeState);
-        loadButton.addEventListener('click', loadCubeState);
-
-        // Run on window load
-        window.onload = function() {
-            initializeFirebase();
+        // --- Run on window load ---
+        window.onload = async function() {
+            await initializeFirebase();
             initThreeJS();
+            
+            // Add event listeners for all buttons after Firebase is initialized
+            signUpButton.addEventListener('click', signUp);
+            signInButton.addEventListener('click', signIn);
+            signOutButton.addEventListener('click', signOutUser);
+            saveButton.addEventListener('click', saveCubeState);
+            loadButton.addEventListener('click', loadCubeState);
         }
     </script>
 </body>
