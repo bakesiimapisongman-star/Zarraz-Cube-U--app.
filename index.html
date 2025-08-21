@@ -66,19 +66,17 @@
     <canvas id="canvas"></canvas>
 
     <script type="module">
+        // Global variables provided by the Canvas environment
         const firebaseEnabled = typeof __firebase_config !== 'undefined';
-        
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         let firebaseConfig = {};
         if (firebaseEnabled) {
             firebaseConfig = JSON.parse(__firebase_config);
         }
-        
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         // Global variables for Firebase services and user ID
         let app, db, auth, userId = null;
-        let firebaseModulesLoaded = false;
 
         // UI elements
         const saveButton = document.getElementById('saveButton');
@@ -95,7 +93,7 @@
         const canvas = document.getElementById('canvas');
         const statusMessage = document.getElementById('statusMessage');
 
-        // --- Three.js Setup ---
+        // --- Three.js Setup (Runs immediately after HTML is parsed) ---
         let scene, camera, renderer, cube;
         let isDragging = false;
         let previousMousePosition = { x: 0, y: 0 };
@@ -147,6 +145,8 @@
                 renderer.render(scene, camera);
             }
             animate();
+            
+            statusMessage.textContent = "Cube is ready. Initializing authentication...";
         }
 
         // --- Firebase Integration and Authentication Logic ---
@@ -164,24 +164,20 @@
                 messageBox.classList.add('hidden');
             }, 5000);
         }
-
+        
+        // This function handles the entire Firebase initialization and logic
         async function initFirebase() {
             if (!firebaseEnabled) {
                 statusMessage.textContent = "Authentication is disabled because Firebase configuration is not available.";
                 return;
             }
             
-            // Dynamically import Firebase modules
-            const firebaseAppModule = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
-            const firebaseAuthModule = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
-            const firestoreModule = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
-
-            // Assign imported functions to be used globally
-            const { initializeApp } = firebaseAppModule;
-            const { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, signInWithCustomToken } = firebaseAuthModule;
-            const { getFirestore, doc, getDoc, setDoc } = firestoreModule;
-
             try {
+                // Dynamically import Firebase modules
+                const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
+                const { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, signInWithCustomToken } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
+                const { getFirestore, doc, getDoc, setDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+                
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
