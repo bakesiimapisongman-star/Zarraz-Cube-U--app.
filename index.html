@@ -24,7 +24,7 @@
     <div class="fixed inset-0 flex flex-col items-center justify-center p-4 z-10">
         <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold text-center mb-4 md:mb-6 leading-tight">Zarraz Cube</h1>
         <p class="text-sm md:text-base text-center text-gray-400 mb-8 max-w-lg">
-            Drag the cube to rotate it. Use the buttons below to save and load its state from the Firebase database.
+            Create an account or log in to save and load your personal cube state.
         </p>
 
         <!-- Container for messages -->
@@ -32,12 +32,32 @@
             <p id="messageText" class="font-medium"></p>
         </div>
 
-        <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-4 w-full justify-center max-w-md">
-            <button id="saveButton" class="w-full sm:w-1/2 bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:bg-indigo-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                Save Cube State
-            </button>
-            <button id="loadButton" class="w-full sm:w-1/2 bg-green-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:bg-green-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500">
-                Load Cube State
+        <!-- Authentication Form - Initially visible -->
+        <div id="authForm" class="w-full max-w-md flex flex-col gap-4 p-6 bg-gray-800 rounded-xl shadow-lg">
+            <input type="email" id="emailInput" placeholder="Email" class="p-3 rounded-lg bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <input type="password" id="passwordInput" placeholder="Password" class="p-3 rounded-lg bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <div class="flex flex-col sm:flex-row gap-3">
+                <button id="signUpButton" class="w-full bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:bg-indigo-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    Sign Up
+                </button>
+                <button id="signInButton" class="w-full bg-green-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:bg-green-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500">
+                    Sign In
+                </button>
+            </div>
+        </div>
+
+        <!-- App Controls - Hidden until authenticated -->
+        <div id="appControls" class="w-full max-w-md flex-col items-center gap-4 hidden">
+            <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full justify-center">
+                <button id="saveButton" class="w-full sm:w-1/2 bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:bg-indigo-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    Save Cube State
+                </button>
+                <button id="loadButton" class="w-full sm:w-1/2 bg-green-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:bg-green-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500">
+                    Load Cube State
+                </button>
+            </div>
+            <button id="signOutButton" class="mt-4 w-full bg-red-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:bg-red-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500">
+                Sign Out
             </button>
         </div>
     </div>
@@ -52,7 +72,7 @@
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Global variables for Firebase services and user ID
@@ -64,11 +84,18 @@
         // UI elements
         const saveButton = document.getElementById('saveButton');
         const loadButton = document.getElementById('loadButton');
+        const signOutButton = document.getElementById('signOutButton');
+        const signUpButton = document.getElementById('signUpButton');
+        const signInButton = document.getElementById('signInButton');
+        const emailInput = document.getElementById('emailInput');
+        const passwordInput = document.getElementById('passwordInput');
         const messageBox = document.getElementById('messageBox');
         const messageText = document.getElementById('messageText');
+        const authForm = document.getElementById('authForm');
+        const appControls = document.getElementById('appControls');
         const canvas = document.getElementById('canvas');
 
-        // --- Three.js Setup ---
+        // --- Three.js Setup (same as before) ---
         let scene, camera, renderer, cube;
         let isDragging = false;
         let previousMousePosition = { x: 0, y: 0 };
@@ -84,7 +111,7 @@
 
             // Cube geometry, material, and mesh
             const geometry = new THREE.BoxGeometry(1, 1, 1);
-            const material = new THREE.MeshNormalMaterial(); // A simple, clean material
+            const material = new THREE.MeshNormalMaterial();
             cube = new THREE.Mesh(geometry, material);
             scene.add(cube);
 
@@ -96,48 +123,23 @@
                 renderer.setSize(window.innerWidth, window.innerHeight);
             }
 
-            // --- Mouse Interaction ---
-            document.addEventListener('mousedown', (e) => {
-                isDragging = true;
-                previousMousePosition.x = e.clientX;
-                previousMousePosition.y = e.clientY;
-            });
-
-            document.addEventListener('mouseup', () => {
-                isDragging = false;
-            });
-
+            // Mouse and touch interaction for cube rotation
+            document.addEventListener('mousedown', (e) => { isDragging = true; previousMousePosition.x = e.clientX; previousMousePosition.y = e.clientY; });
+            document.addEventListener('mouseup', () => { isDragging = false; });
             document.addEventListener('mousemove', (e) => {
                 if (!isDragging) return;
-                const deltaMove = {
-                    x: e.clientX - previousMousePosition.x,
-                    y: e.clientY - previousMousePosition.y
-                };
+                const deltaMove = { x: e.clientX - previousMousePosition.x, y: e.clientY - previousMousePosition.y };
                 cube.rotation.y += deltaMove.x * 0.005;
                 cube.rotation.x += deltaMove.y * 0.005;
                 previousMousePosition.x = e.clientX;
                 previousMousePosition.y = e.clientY;
             });
-
-            // Touch event listeners for mobile devices
-            document.addEventListener('touchstart', (e) => {
-                isDragging = true;
-                const touch = e.touches[0];
-                previousMousePosition.x = touch.clientX;
-                previousMousePosition.y = touch.clientY;
-            });
-
-            document.addEventListener('touchend', () => {
-                isDragging = false;
-            });
-
+            document.addEventListener('touchstart', (e) => { isDragging = true; const touch = e.touches[0]; previousMousePosition.x = touch.clientX; previousMousePosition.y = touch.clientY; });
+            document.addEventListener('touchend', () => { isDragging = false; });
             document.addEventListener('touchmove', (e) => {
                 if (!isDragging) return;
                 const touch = e.touches[0];
-                const deltaMove = {
-                    x: touch.clientX - previousMousePosition.x,
-                    y: touch.clientY - previousMousePosition.y
-                };
+                const deltaMove = { x: touch.clientX - previousMousePosition.x, y: touch.clientY - previousMousePosition.y };
                 cube.rotation.y += deltaMove.x * 0.005;
                 cube.rotation.x += deltaMove.y * 0.005;
                 previousMousePosition.x = touch.clientX;
@@ -152,8 +154,7 @@
             animate();
         }
 
-        // --- Firebase Integration ---
-        // Function to show messages to the user
+        // --- Firebase Integration and Authentication Logic ---
         function showMessage(text, isError = false) {
             messageText.textContent = text;
             messageBox.classList.remove('hidden');
@@ -169,7 +170,6 @@
             }, 5000);
         }
 
-        // Initialize Firebase and set up auth listener
         async function initializeFirebase() {
             try {
                 if (!firebaseConfig) {
@@ -182,40 +182,89 @@
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
-                // Use onAuthStateChanged to ensure we have a user before doing Firestore ops
-                onAuthStateChanged(auth, async (user) => {
+                // Use onAuthStateChanged to manage UI based on login state
+                onAuthStateChanged(auth, (user) => {
                     if (user) {
+                        // User is logged in
                         userId = user.uid;
-                        console.log("User authenticated:", userId);
-                        showMessage("Connected to Firebase successfully!");
+                        authForm.classList.add('hidden');
+                        appControls.classList.remove('hidden');
+                        showMessage(`Welcome back, ${user.email}!`);
                     } else {
-                        if (initialAuthToken) {
-                            await signInWithCustomToken(auth, initialAuthToken);
-                        } else {
-                            await signInAnonymously(auth);
-                        }
+                        // User is logged out
+                        userId = null;
+                        authForm.classList.remove('hidden');
+                        appControls.classList.add('hidden');
+                        showMessage("Please sign in or sign up.", false);
                     }
                 });
+
+                // Authenticate with the initial token if it exists
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                }
             } catch (error) {
                 console.error("Error initializing Firebase:", error);
                 showMessage(`Error initializing Firebase: ${error.message}`, true);
             }
         }
 
-        // --- Save Cube State to Firestore ---
+        // --- User Authentication Functions ---
+        async function signUp() {
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            if (!email || !password) {
+                showMessage("Please enter both email and password.", true);
+                return;
+            }
+            try {
+                await createUserWithEmailAndPassword(auth, email, password);
+                showMessage("Sign up successful! You are now logged in.");
+            } catch (error) {
+                console.error("Sign up error:", error);
+                showMessage(`Sign up failed: ${error.message}`, true);
+            }
+        }
+
+        async function signIn() {
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            if (!email || !password) {
+                showMessage("Please enter both email and password.", true);
+                return;
+            }
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                showMessage("Sign in successful!");
+            } catch (error) {
+                console.error("Sign in error:", error);
+                showMessage(`Sign in failed: ${error.message}`, true);
+            }
+        }
+
+        async function signOutUser() {
+            try {
+                await signOut(auth);
+                showMessage("You have been signed out.");
+            } catch (error) {
+                console.error("Sign out error:", error);
+                showMessage(`Sign out failed: ${error.message}`, true);
+            }
+        }
+
+        // --- Firestore Functions ---
         async function saveCubeState() {
             if (!userId) {
-                showMessage("Authentication not ready. Please wait a moment.", true);
+                showMessage("You must be logged in to save the cube state.", true);
                 return;
             }
 
             const docId = 'zarraz-state';
-            // The path has been changed to a public collection to allow shared data
-            const path = `artifacts/${appId}/public/cube-state/${docId}`;
+            // The path is now private and specific to the authenticated user
+            const path = `artifacts/${appId}/users/${userId}/cube-state/${docId}`;
             const docRef = doc(db, path);
 
             try {
-                // Get the current rotation angles of the cube
                 const rotation = {
                     x: cube.rotation.x,
                     y: cube.rotation.y,
@@ -227,24 +276,22 @@
                     lastUpdated: new Date() 
                 });
                 
-                console.log(`Cube state saved to: ${path}`);
-                showMessage("Cube state saved to the database!");
+                console.log(`Cube state saved for user ${userId}.`);
+                showMessage("Cube state saved to your account!");
             } catch (e) {
                 console.error("Error saving document: ", e);
                 showMessage(`Error saving state: ${e.message}`, true);
             }
         }
 
-        // --- Load Cube State from Firestore ---
         async function loadCubeState() {
             if (!userId) {
-                showMessage("Authentication not ready. Please wait a moment.", true);
+                showMessage("You must be logged in to load the cube state.", true);
                 return;
             }
 
             const docId = 'zarraz-state';
-            // The path has been changed to a public collection
-            const path = `artifacts/${appId}/public/cube-state/${docId}`;
+            const path = `artifacts/${appId}/users/${userId}/cube-state/${docId}`;
             const docRef = doc(db, path);
 
             try {
@@ -254,15 +301,14 @@
                     const data = docSnap.data();
                     const rotation = data.rotation;
                     
-                    // Apply the loaded rotation to the cube
                     cube.rotation.x = rotation.x;
                     cube.rotation.y = rotation.y;
                     cube.rotation.z = rotation.z;
 
-                    console.log("Cube state loaded:", data);
-                    showMessage("Cube state loaded from the database!");
+                    console.log(`Cube state loaded for user ${userId}.`);
+                    showMessage("Cube state loaded from your account!");
                 } else {
-                    showMessage("No saved cube state found.", true);
+                    showMessage("No saved cube state found for your account.", true);
                     console.log("No saved state found!");
                 }
             } catch (e) {
@@ -271,7 +317,10 @@
             }
         }
         
-        // Add event listeners
+        // Add event listeners for all buttons
+        signUpButton.addEventListener('click', signUp);
+        signInButton.addEventListener('click', signIn);
+        signOutButton.addEventListener('click', signOutUser);
         saveButton.addEventListener('click', saveCubeState);
         loadButton.addEventListener('click', loadCubeState);
 
